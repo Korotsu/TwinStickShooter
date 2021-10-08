@@ -23,7 +23,7 @@ ATwinStickShooterPawn::ATwinStickShooterPawn()
 	RootComponent = ShipMeshComponent;
 	ShipMeshComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);
 	ShipMeshComponent->SetStaticMesh(ShipMesh.Object);
-	ShipMeshComponent->SetIsReplicated(true);
+	//ShipMeshComponent->SetIsReplicated(true);
 	
 	// Cache our sound effect
 	static ConstructorHelpers::FObjectFinder<USoundBase> FireAudio(TEXT("/Game/TwinStick/Audio/TwinStickFire.TwinStickFire"));
@@ -57,6 +57,7 @@ ATwinStickShooterPawn::ATwinStickShooterPawn()
 
 	CurrentHealthPoints = MaxHealthPoints;
 
+	
 	SetReplicates(true);
 }
 
@@ -158,11 +159,17 @@ void ATwinStickShooterPawn::FireShot(FVector FireDirection)
 void ATwinStickShooterPawn::ServerMove_Implementation(const FVector& Movement)
 {
 	ProcessMovement(Movement);
+	//PerformReceivedMove(Movement);
 }
 
 bool ATwinStickShooterPawn::ServerMove_Validate(const FVector& Movement)
 {
 	return true;
+}
+
+void ATwinStickShooterPawn::PerformReceivedMove_Implementation(const FVector& Movement)
+{
+	ProcessMovement(Movement);
 }
 
 void ATwinStickShooterPawn::ServerFireShot_Implementation(const FVector& FireDirection)
@@ -228,7 +235,15 @@ void ATwinStickShooterPawn::ProcessFireShot(const FVector& FireDirection)
 			bCanFire = false;
 		}
 	}
+
+
 }
+
+void ATwinStickShooterPawn::OnScoreUpdateMultiCast_Implementation(class APlayerState* ps, float score)
+{
+	OnScoreUpdate(ps, score);
+}
+
 #pragma endregion
 
 
@@ -264,6 +279,7 @@ float ATwinStickShooterPawn::TakeDamage(float DamageAmount, struct FDamageEvent 
 			if (EventInstigator)
 			{
 				EventInstigator->PlayerState->SetScore(EventInstigator->PlayerState->Score + 1);
+				OnScoreUpdateMultiCast(EventInstigator->PlayerState, EventInstigator->PlayerState->Score);
 			}
 			//K2_DestroyActor();
 			// "revive" player after a delay

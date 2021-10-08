@@ -33,15 +33,15 @@ class ATwinStickShooterPawn : public APawn
 	GENERATED_BODY()
 
 	/* The mesh component */
-	UPROPERTY(replicated, Category = Mesh, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Mesh, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* ShipMeshComponent;
 
 	/** The camera */
-	UPROPERTY(replicated, Category = Camera, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Camera, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* CameraComponent;
 
 	/** Camera boom positioning the camera above the character */
-	UPROPERTY(replicated, Category = Camera, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Category = Camera, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 
 public:
@@ -79,6 +79,14 @@ public:
 
 	/* Handler for the fire timer expiry */
 	void ShotTimerExpired();
+
+	UFUNCTION(NetMulticast, unreliable)
+		void OnScoreUpdateMultiCast(class APlayerState* ps, float score);
+
+	void OnScoreUpdateMultiCast_Implementation(class APlayerState* ps, float score);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "PlayerState")
+		void OnScoreUpdate(class APlayerState* ps, float score);
 
 	// Static names for axis bindings
 	static const FName MoveForwardBinding;
@@ -138,13 +146,17 @@ private:
 	void ServerMove_Implementation(const FVector& Movement);
 	bool ServerMove_Validate(const FVector& Movement);
 
+	UFUNCTION(NetMulticast, unreliable)
+		void PerformReceivedMove(const FVector& Movement);
+
+	void PerformReceivedMove_Implementation(const FVector& Movement);
+
 	void ProcessMovement(const FVector& Movement);
 
 	/* Revive Pawn */
 	void Revive();
 
 	float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
-
 	/*void ClientUpdatePositionAfterServerUpdate();
 
 	void ReplicateMoveToServer(float DeltaSeconds);
@@ -168,14 +180,14 @@ private:
 	/*UFUNCTION()
 	void OnRep_ReplicatedMove();*/
 
-	virtual void GetLifetimeReplicatedProps(TArray< class FLifetimeProperty >&
+	/*virtual void GetLifetimeReplicatedProps(TArray< class FLifetimeProperty >&
 		OutLifetimeProps) const override
 	{
 		Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 		DOREPLIFETIME(ATwinStickShooterPawn, ShipMeshComponent);
 		DOREPLIFETIME(ATwinStickShooterPawn, CameraComponent);
 		DOREPLIFETIME(ATwinStickShooterPawn, CameraBoom);
-	}
+	}*/
 
 public:
 	/** Returns ShipMeshComponent subobject **/
