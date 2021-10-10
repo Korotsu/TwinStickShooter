@@ -4,6 +4,7 @@
 #include "TwinStickShooter.h"
 #include "TwinStickShooterProjectile.h"
 #include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
 #include <Runtime/Engine/Classes/Engine/Engine.h>
 
 #define print(text) if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5, FColor::White,text)
@@ -23,7 +24,7 @@ ATwinStickShooterPawn::ATwinStickShooterPawn()
 	RootComponent = ShipMeshComponent;
 	ShipMeshComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);
 	ShipMeshComponent->SetStaticMesh(ShipMesh.Object);
-	//ShipMeshComponent->SetIsReplicated(true);
+	ShipMeshComponent->SetIsReplicated(true);
 	
 	// Cache our sound effect
 	static ConstructorHelpers::FObjectFinder<USoundBase> FireAudio(TEXT("/Game/TwinStick/Audio/TwinStickFire.TwinStickFire"));
@@ -54,6 +55,7 @@ ATwinStickShooterPawn::ATwinStickShooterPawn()
 	bCanFire = true;
 	bIsAlive = true;
 	bUpdatePosition = false;
+	hasVictory = false;
 
 	CurrentHealthPoints = MaxHealthPoints;
 
@@ -70,6 +72,7 @@ void ATwinStickShooterPawn::SetupPlayerInputComponent(class UInputComponent* Pla
 	PlayerInputComponent->BindAxis(MoveRightBinding);
 	PlayerInputComponent->BindAxis(FireForwardBinding);
 	PlayerInputComponent->BindAxis(FireRightBinding);
+	PlayerInputComponent->BindAction("QuitGame", IE_Pressed, this, &ATwinStickShooterPawn::CloseGame);
 }
 
 #pragma endregion
@@ -97,10 +100,6 @@ void ATwinStickShooterPawn::Tick(float DeltaSeconds)
 
 			// Apply movement
 			ComputeMove(DeltaSeconds);
-
-			/*ClientUpdatePositionAfterServerUpdate();
-
-			ReplicateMoveToServer(DeltaSeconds);*/
 		}
 
 		else if (GetLocalRole() == ROLE_Authority && GetNetMode() == ENetMode::NM_ListenServer)
@@ -140,17 +139,17 @@ void ATwinStickShooterPawn::ComputeMove(float DeltaSeconds)
 	// Calculate  movement
 	const FVector Movement = MoveDirection * MoveSpeed * DeltaSeconds;
 
-	//ProcessMovement(Movement);
 	ServerMove(Movement);
-
-	//replicatedMovement = 
-	//MoveAutonomous(Movement);
 }
 
 void ATwinStickShooterPawn::FireShot(FVector FireDirection)
 {
-	//ProcessFireShot(FireDirection);
 	ServerFireShot(FireDirection);
+}
+
+void ATwinStickShooterPawn::CloseGame()
+{
+	UGameplayStatics::GetPlayerController(GetWorld(), 0)->ConsoleCommand("quit");
 }
 
 #pragma endregion
@@ -159,7 +158,6 @@ void ATwinStickShooterPawn::FireShot(FVector FireDirection)
 void ATwinStickShooterPawn::ServerMove_Implementation(const FVector& Movement)
 {
 	ProcessMovement(Movement);
-	//PerformReceivedMove(Movement);
 }
 
 bool ATwinStickShooterPawn::ServerMove_Validate(const FVector& Movement)
@@ -244,6 +242,16 @@ void ATwinStickShooterPawn::OnScoreUpdateMultiCast_Implementation(class APlayerS
 	OnScoreUpdate(ps, score);
 }
 
+void ATwinStickShooterPawn::ServerCheckScore_Implementation(class APlayerState* ps, float score)
+{
+	CheckScore(ps,score);
+}
+
+bool ATwinStickShooterPawn::ServerCheckScore_Validate(class APlayerState* ps, float score)
+{
+	return true;
+}
+
 #pragma endregion
 
 
@@ -279,115 +287,11 @@ float ATwinStickShooterPawn::TakeDamage(float DamageAmount, struct FDamageEvent 
 			if (EventInstigator)
 			{
 				EventInstigator->PlayerState->SetScore(EventInstigator->PlayerState->GetScore() + 1);
+				ServerCheckScore(EventInstigator->PlayerState, EventInstigator->PlayerState->Score);
 				OnScoreUpdateMultiCast(EventInstigator->PlayerState, EventInstigator->PlayerState->Score);
 			}
-			//K2_DestroyActor();
-			// "revive" player after a delay
 			GetWorld()->GetTimerManager().SetTimer(TimerHandle_Revive, this, &ATwinStickShooterPawn::Revive, ReviveDelay, false);
 		}
 	}
 	return ActualDamage;
 }
-
-#pragma region ServerFunction
-
-/*void ATwinStickShooterPawn::OnRep_ReplicatedMove()
-{
-	savedMoves.Add(replicatedMovement);
-	bUpdatePosition = true;
-}*/
-
-/*void ATwinStickShooterPawn::ServerMove_Implementation(float timeStamp, float deltaTime, FVector_NetQuantize10 movement, FVector_NetQuantize10 clientPos)
-{
-	FSavedMove move = FSavedMove(timeStamp, deltaTime, movement);
-	MoveAutonomous(move);
-
-	FVector myPosition = GetActorLocation();
-	ServerMoveHandleClientError(DeltaTime, Accel, clientPos, ...);
-}
-
-bool ATwinStickShooterPawn::ServerMove_Validate()
-{
-	return true;
-}
-
-void ATwinStickShooterPawn::CallServerMove(const FSavedMove& move)
-{
-	ServerMove(move.timeStamp, move.deltaTime, move.movement, GetActorLocation());
-}
-
-void ATwinStickShooterPawn::ServerMoveHandleClientError(FVector clientPos, FVector serverPos)
-{
-	if (FVector::Dist(serverPos, clientPos) < maxDistanceErrorOffset)
-	{
-
-	}
-}*/
-
-#pragma endregion
-
-#pragma region ClientFunctions
-
-/*void ATwinStickShooterPawn::ClientUpdatePositionAfterServerUpdate()
-{
-	if (!bUpdatePosition)
-		return;
-
-	for (int32 i = 0; i < savedMoves.Num(); i++)
-	{
-		const FSavedMove& Move = savedMoves[i];
-		PerformMovement(Move.deltaTime, Move.movement);
-	}
-
-	bUpdatePosition = false;
-}
-
-void ATwinStickShooterPawn::MoveAutonomous(const FSavedMove& movement)
-{
-	PerformMovement(movement.deltaTime, movement.movement);
-
-	replicatedMovement = movement;
-}
-
-void ATwinStickShooterPawn::ReplicateMoveToServer(float DeltaTime)
-{
-	FSavedMove NewMove = CreateMove(DeltaTime);
-	if (!NewMove.movement.IsNearlyZero())
-	{
-		PerformMovement(NewMove.deltaTime, NewMove.movement);
-
-		CallServerMove(NewMove);
-	}
-}*/
-
-#pragma endregion
-
-#pragma region Movement
-/*FSavedMove& ATwinStickShooterPawn::CreateMove(float deltaTime)
-{
-	if (ForwardValue == 0.0f && RightValue == 0.0f)
-		return FSavedMove();
-
-	// Calculate  movement
-	const FVector Movement = MoveDirection * MoveSpeed * deltaTime;
-}
-
-void ATwinStickShooterPawn::PerformMovement(float DeltaTime, FVector movement)
-{
-	// If non-zero size, move this actor
-	if (movement.SizeSquared() > 0.0f)
-	{
-		const FRotator NewRotation = movement.Rotation();
-		FHitResult Hit(1.f);
-		RootComponent->MoveComponent(movement, NewRotation, true, &Hit);
-
-		if (Hit.IsValidBlockingHit())
-		{
-			const FVector Normal2D = Hit.Normal.GetSafeNormal2D();
-			const FVector Deflection = FVector::VectorPlaneProject(movement, Normal2D) * (1.f - Hit.Time);
-			RootComponent->MoveComponent(Deflection, NewRotation, true);
-		}
-	}
-}*/
-
-#pragma endregion

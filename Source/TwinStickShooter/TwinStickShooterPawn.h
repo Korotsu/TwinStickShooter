@@ -72,6 +72,9 @@ public:
 	UPROPERTY(Category = Audio, EditAnywhere, BlueprintReadWrite)
 	class USoundBase* FireSound;
 
+	UPROPERTY(Category = Gameplay, EditAnywhere, BlueprintReadWrite)
+		bool hasVictory;
+
 	// Begin Actor Interface
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
@@ -88,6 +91,15 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "PlayerState")
 		void OnScoreUpdate(class APlayerState* ps, float score);
 
+	UFUNCTION(server, unreliable, WithValidation)
+		void ServerCheckScore(class APlayerState* ps, float score);
+
+	void ServerCheckScore_Implementation(class APlayerState* ps, float score);
+	bool ServerCheckScore_Validate(class APlayerState* ps, float score);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "PlayerState")
+	void CheckScore(class APlayerState* ps, float score);
+
 	// Static names for axis bindings
 	static const FName MoveForwardBinding;
 	static const FName MoveRightBinding;
@@ -103,8 +115,6 @@ private:
 
 	/* Flag to set the updatePosition state */
 	uint32 bUpdatePosition : 1;
-
-	//UCharacterMovementComponent* cMoveComp;
 	
 	/** Handle for efficient management of ShotTimerExpired timer */
 	FTimerHandle TimerHandle_ShotTimerExpired;
@@ -118,11 +128,6 @@ private:
 
 	UPROPERTY()
 	FVector MoveDirection;
-
-	//TArray<FSavedMove> savedMoves;
-
-	/*UPROPERTY(ReplicatedUsing = OnRep_ReplicatedMovement)
-	FSavedMove replicatedMove;*/
 
 	int CurrentHealthPoints;
 
@@ -157,37 +162,8 @@ private:
 	void Revive();
 
 	float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
-	/*void ClientUpdatePositionAfterServerUpdate();
-
-	void ReplicateMoveToServer(float DeltaSeconds);
-
-	void MoveAutonomous(const FSavedMove& movement);
-
-	FSavedMove& CreateMove(float deltaTime);
-
-	void PerformMovement(float DeltaTime, FVector movement);
-
-	UFUNCTION(unreliable, server, WithValidation)
-		void ServerMove(float timeStamp, float deltaTime, FVector_NetQuantize10 movement, FVector_NetQuantize10 clientPos);
-
-	void ServerMove_Implementation(float timeStamp, float deltaTime, FVector_NetQuantize10 movement, FVector_NetQuantize10 clientPos);
-	bool ServerMove_Validate();
 	
-	void CallServerMove(const FSavedMove& move);
-
-	void ServerMoveHandleClientError(FVector clientPos, FVector serverPos);*/
-
-	/*UFUNCTION()
-	void OnRep_ReplicatedMove();*/
-
-	/*virtual void GetLifetimeReplicatedProps(TArray< class FLifetimeProperty >&
-		OutLifetimeProps) const override
-	{
-		Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-		DOREPLIFETIME(ATwinStickShooterPawn, ShipMeshComponent);
-		DOREPLIFETIME(ATwinStickShooterPawn, CameraComponent);
-		DOREPLIFETIME(ATwinStickShooterPawn, CameraBoom);
-	}*/
+	void CloseGame();
 
 public:
 	/** Returns ShipMeshComponent subobject **/
