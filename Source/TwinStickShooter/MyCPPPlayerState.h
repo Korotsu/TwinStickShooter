@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/World.h"
+#include "GameFramework/GameState.h"
 #include "MyCPPPlayerState.generated.h"
 
 /**
@@ -20,8 +22,17 @@ public:
 	UPROPERTY(replicated, Category = Variables, EditAnywhere, BlueprintReadWrite)
 	int myPlayerID;
 
-	UPROPERTY(replicated, Category = Variables, EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(replicated, ReplicatedUsing = OnRep_UserName, Category = Variables, EditAnywhere, BlueprintReadWrite)
 	FString userName;
+
+	UPROPERTY(replicated, ReplicatedUsing = OnRep_shipColor, Category = Variables, EditAnywhere, BlueprintReadWrite)
+	FLinearColor shipColor;
+
+	UFUNCTION(BlueprintImplementableEvent)
+		void OnRep_UserName();
+
+	UFUNCTION(BlueprintImplementableEvent)
+		void OnRep_shipColor();
 
 	AMyCPPPlayerState();
 	

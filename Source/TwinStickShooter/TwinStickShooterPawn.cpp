@@ -278,7 +278,7 @@ float ATwinStickShooterPawn::TakeDamage(float DamageAmount, struct FDamageEvent 
 			ShipMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			if (EventInstigator)
 			{
-				EventInstigator->PlayerState->SetScore(EventInstigator->PlayerState->Score + 1);
+				EventInstigator->PlayerState->SetScore(EventInstigator->PlayerState->GetScore() + 1);
 				OnScoreUpdateMultiCast(EventInstigator->PlayerState, EventInstigator->PlayerState->Score);
 			}
 			//K2_DestroyActor();
